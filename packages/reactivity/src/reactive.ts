@@ -55,6 +55,7 @@ function targetTypeMap(rawType: string) {
   }
 }
 
+// 根据 value 的原始类型，返回对应的 TargetType
 function getTargetType(value: Target) {
   return value[ReactiveFlags.SKIP] || !Object.isExtensible(value)
     ? TargetType.INVALID
@@ -89,6 +90,7 @@ export type UnwrapNestedRefs<T> = T extends Ref ? T : UnwrapRefSimple<T>
 export function reactive<T extends object>(target: T): UnwrapNestedRefs<T>
 export function reactive(target: object) {
   // if trying to observe a readonly proxy, return the readonly version.
+  // 如果 target 是一个 readonly 的 proxy, 表示它不能是响应式的，那么不应该对其进行响应式转换
   if (isReadonly(target)) {
     return target
   }
@@ -178,6 +180,7 @@ export function shallowReadonly<T extends object>(target: T): Readonly<T> {
   )
 }
 
+// 创建响应式对象
 function createReactiveObject(
   target: Target,
   isReadonly: boolean,
@@ -185,26 +188,29 @@ function createReactiveObject(
   collectionHandlers: ProxyHandler<any>,
   proxyMap: WeakMap<Target, any>
 ) {
+  // 必须是一个对象
   if (!isObject(target)) {
     if (__DEV__) {
       console.warn(`value cannot be made reactive: ${String(target)}`)
     }
     return target
   }
-  // target is already a Proxy, return it.
-  // exception: calling readonly() on a reactive object
   if (
+    // 如果 target 是一个 proxy，说明它已经是一个响应式的数据了，直接返回 target 即可，但是我们有对响应式数据调用 readonly 的场景，
+    // 所以这里不会直接返回 target，而是对这个响应式数据，加一层 readonly 的 proxy
     target[ReactiveFlags.RAW] &&
     !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
   ) {
     return target
   }
-  // target already has corresponding Proxy
+  // 如果这个 target 已经有一个对应的 reactive obj 了，也就是已经有了对应的 proxy 了，那么直接返回对应的  proxy
   const existingProxy = proxyMap.get(target)
   if (existingProxy) {
     return existingProxy
   }
   // only specific value types can be observed.
+  // 对于一些被 freeze 或者 Object.seal 方法包装过的对象，是不能转换为响应式对象的，直接返回 target
+  // targetType 是指 target 的类型，对应 object, array 就是 COMMON，对于 map, set 等类型就是 COLLECTION
   const targetType = getTargetType(target)
   if (targetType === TargetType.INVALID) {
     return target
@@ -224,23 +230,28 @@ export function isReactive(value: unknown): boolean {
   return !!(value && (value as Target)[ReactiveFlags.IS_REACTIVE])
 }
 
+// 看 value  __v_isReadonly 是否返回 true
 export function isReadonly(value: unknown): boolean {
   return !!(value && (value as Target)[ReactiveFlags.IS_READONLY])
 }
 
+// 看 value 上上面有没有 __v_isReadonly 属性
 export function isShallow(value: unknown): boolean {
   return !!(value && (value as Target)[ReactiveFlags.IS_SHALLOW])
 }
 
+// 看是否是 reactive 或者 readonly
 export function isProxy(value: unknown): boolean {
   return isReactive(value) || isReadonly(value)
 }
 
+// 返回最原始的对象，因为 proxy 可能是嵌套的，所以这里是递归的调用 toRow，找到一个没有 __v_raw 的对象，那么这个对象就是最原始的对象，即不是一个 Proxy
 export function toRaw<T>(observed: T): T {
   const raw = observed && (observed as Target)[ReactiveFlags.RAW]
   return raw ? toRaw(raw) : observed
 }
 
+// mark 一个 obj，是这个 obj 永远不会被转换为一个 proxy
 export function markRaw<T extends object>(
   value: T
 ): T & { [RawSymbol]?: true } {
@@ -248,8 +259,10 @@ export function markRaw<T extends object>(
   return value
 }
 
+// 将 value 转换为 一个 reactive ,返回一个 proxy
 export const toReactive = <T extends unknown>(value: T): T =>
   isObject(value) ? reactive(value) : value
 
+// 将 value 转换为 一个 readonly 对象，返回一个 proxy
 export const toReadonly = <T extends unknown>(value: T): T =>
   isObject(value) ? readonly(value as Record<any, any>) : value

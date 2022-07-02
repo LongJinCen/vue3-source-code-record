@@ -15,6 +15,7 @@ const toShallow = <T extends unknown>(value: T): T => value
 const getProto = <T extends CollectionTypes>(v: T): any =>
   Reflect.getPrototypeOf(v)
 
+// collections 集合的 getter 访问器
 function get(
   target: MapTypes,
   key: unknown,
