@@ -17,7 +17,9 @@ import {
 type Writable<T> = { -readonly [P in keyof T]: T[P] }
 
 describe('reactivity/readonly', () => {
+  // readonly 处理对象
   describe('Object', () => {
+    // 嵌套的值也为 readonly
     it('should make nested values readonly', () => {
       const original = { foo: 1, bar: { baz: 2 } }
       const wrapped = readonly(original)
@@ -38,7 +40,7 @@ describe('reactivity/readonly', () => {
       // ownKeys
       expect(Object.keys(wrapped)).toEqual(['foo', 'bar'])
     })
-
+    // 值不可修改
     it('should not allow mutation', () => {
       const qux = Symbol('qux')
       const original = {
@@ -89,7 +91,7 @@ describe('reactivity/readonly', () => {
         `Delete operation on key "Symbol(qux)" failed: target is readonly.`
       ).toHaveBeenWarnedLast()
     })
-
+    // readonly 的值不是响应式的
     it('should not trigger effects', () => {
       const wrapped: any = readonly({ a: 1 })
       let dummy
@@ -103,7 +105,7 @@ describe('reactivity/readonly', () => {
       expect(`target is readonly`).toHaveBeenWarned()
     })
   })
-
+  // readonly 处理数组，跟处理对象一样，嵌套的属性应该也是 readonly，不可修改，不是响应式
   describe('Array', () => {
     it('should make nested values readonly', () => {
       const original = [{ foo: 1 }]
@@ -172,6 +174,7 @@ describe('reactivity/readonly', () => {
     })
   })
 
+  // readonly 处理集合类型，跟处理对象一样，嵌套的属性应该也是 readonly，不可修改，不是响应式
   const maps = [Map, WeakMap]
   maps.forEach((Collection: any) => {
     describe(Collection.name, () => {
