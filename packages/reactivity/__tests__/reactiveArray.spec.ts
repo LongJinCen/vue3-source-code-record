@@ -3,6 +3,7 @@ import { ref, isRef } from '../src/ref'
 import { effect } from '../src/effect'
 
 describe('reactivity/reactive/Array', () => {
+  // 数组和其子项应该为响应式
   test('should make Array reactive', () => {
     const original = [{ foo: 1 }]
     const observed = reactive(original)
@@ -17,7 +18,7 @@ describe('reactivity/reactive/Array', () => {
     // ownKeys
     expect(Object.keys(observed)).toEqual(['0'])
   })
-
+  // clone 的数组，应该指向 observed 的 value
   test('cloned reactive Array should point to observed values', () => {
     const original = [{ foo: 1 }]
     const observed = reactive(original)
@@ -26,7 +27,7 @@ describe('reactivity/reactive/Array', () => {
     expect(clone[0]).not.toBe(original[0])
     expect(clone[0]).toBe(observed[0])
   })
-
+  // 原始值跟响应式值访问同一个 key，应该得到一样的值
   test('observed value should proxy mutations to original (Array)', () => {
     const original: any[] = [{ foo: 1 }, { bar: 2 }]
     const observed = reactive(original)
@@ -49,6 +50,7 @@ describe('reactivity/reactive/Array', () => {
   test('Array identity methods should work with raw values', () => {
     const raw = {}
     const arr = reactive([{}, {}])
+    // 第一次 push 时 raw 不会被转换为响应式
     arr.push(raw)
     expect(arr.indexOf(raw)).toBe(2)
     expect(arr.indexOf(raw, 3)).toBe(-1)
@@ -58,6 +60,7 @@ describe('reactivity/reactive/Array', () => {
     expect(arr.lastIndexOf(raw, 1)).toBe(-1)
 
     // should work also for the observed version
+    // 当被访问时，raw 才会被转换为响应式
     const observed = arr[2]
     expect(arr.indexOf(observed)).toBe(2)
     expect(arr.indexOf(observed, 3)).toBe(-1)
@@ -66,7 +69,7 @@ describe('reactivity/reactive/Array', () => {
     expect(arr.lastIndexOf(observed)).toBe(2)
     expect(arr.lastIndexOf(observed, 1)).toBe(-1)
   })
-
+  // reactive array 的 identify 类型的方法会 fallback 到原始类型进行对比
   test('Array identity methods should work if raw value contains reactive objects', () => {
     const raw = []
     const obj = reactive({})
@@ -74,7 +77,7 @@ describe('reactivity/reactive/Array', () => {
     const arr = reactive(raw)
     expect(arr.includes(obj)).toBe(true)
   })
-
+  // 对于调用 identify 类型的方法，如果找到目标，那么目标会进行依赖收集
   test('Array identity methods should be reactive', () => {
     const obj = {}
     const arr = reactive([obj, {}])
@@ -87,7 +90,7 @@ describe('reactivity/reactive/Array', () => {
     arr.reverse()
     expect(index).toBe(1)
   })
-
+  // array 的 length 改变不会进行派发更新
   test('delete on Array should not trigger length dependency', () => {
     const arr = reactive([1, 2, 3])
     const fn = jest.fn()
@@ -98,7 +101,6 @@ describe('reactivity/reactive/Array', () => {
     delete arr[1]
     expect(fn).toHaveBeenCalledTimes(1)
   })
-
   test('add existing index on Array should not trigger length dependency', () => {
     const array = new Array(3)
     const observed = reactive(array)
@@ -110,7 +112,6 @@ describe('reactivity/reactive/Array', () => {
     observed[1] = 1
     expect(fn).toHaveBeenCalledTimes(1)
   })
-
   test('add non-integer prop on Array should not trigger length dependency', () => {
     const array: any[] & { x?: string } = new Array(3)
     const observed = reactive(array)
@@ -128,6 +129,7 @@ describe('reactivity/reactive/Array', () => {
   })
 
   // #2427
+  // 对于迭代数组，会进行依赖收集
   test('track length on for ... in iteration', () => {
     const array = reactive([1])
     let length = ''
