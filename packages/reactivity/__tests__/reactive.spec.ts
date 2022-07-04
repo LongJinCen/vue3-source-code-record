@@ -4,6 +4,7 @@ import { computed } from '../src/computed'
 import { effect } from '../src/effect'
 
 describe('reactivity/reactive', () => {
+  // 针对 object ，reactive 使其变成响应式
   test('Object', () => {
     const original = { foo: 1 }
     const observed = reactive(original)
@@ -17,7 +18,6 @@ describe('reactivity/reactive', () => {
     // ownKeys
     expect(Object.keys(observed)).toEqual(['foo'])
   })
-
   test('proto', () => {
     const obj = {}
     const reactiveObj = reactive(obj)
@@ -31,7 +31,7 @@ describe('reactivity/reactive', () => {
     expect(isReactive(reactiveOther)).toBe(true)
     expect(reactiveOther.data[0]).toBe('a')
   })
-
+  // 嵌套的值，在访问时应该被转换为响应式
   test('nested reactives', () => {
     const original = {
       nested: {
@@ -44,7 +44,7 @@ describe('reactivity/reactive', () => {
     expect(isReactive(observed.array)).toBe(true)
     expect(isReactive(observed.array[0])).toBe(true)
   })
-
+  // 响应式的集合类型 map 和 set，它们的值也应该是响应式的
   test('observing subtypes of IterableCollections(Map, Set)', () => {
     // subtypes of Map
     class CustomMap extends Map {}
@@ -71,7 +71,7 @@ describe('reactivity/reactive', () => {
     cset.delete('value')
     expect(dummy).toBe(false)
   })
-
+  // 响应式集合类型 WeakMap 和 WeakSet 的值应该是响应式的
   test('observing subtypes of WeakCollections(WeakMap, WeakSet)', () => {
     // subtypes of WeakMap
     class CustomMap extends WeakMap {}
@@ -99,7 +99,7 @@ describe('reactivity/reactive', () => {
     cset.delete(key)
     expect(dummy).toBe(false)
   })
-
+  // 原始值和响应式值访问同一个 key 应该得到一样的值
   test('observed value should proxy mutations to original (Object)', () => {
     const original: any = { foo: 1 }
     const observed = reactive(original)
@@ -112,7 +112,6 @@ describe('reactivity/reactive', () => {
     expect('foo' in observed).toBe(false)
     expect('foo' in original).toBe(false)
   })
-
   test('original value change should reflect in observed value (Object)', () => {
     const original: any = { foo: 1 }
     const observed = reactive(original)
@@ -125,7 +124,7 @@ describe('reactivity/reactive', () => {
     expect('foo' in original).toBe(false)
     expect('foo' in observed).toBe(false)
   })
-
+  // 添加一个值，应该将其转换为一个响应式的值
   test('setting a property with an unobserved value should wrap with reactive', () => {
     const observed = reactive<{ foo?: object }>({})
     const raw = {}
@@ -133,14 +132,13 @@ describe('reactivity/reactive', () => {
     expect(observed.foo).not.toBe(raw)
     expect(isReactive(observed.foo)).toBe(true)
   })
-
+  // 如果一个value已经是一个 proxy 了，再次对其进行响应式转换得到的是同一个 proxy
   test('observing already observed value should return same Proxy', () => {
     const original = { foo: 1 }
     const observed = reactive(original)
     const observed2 = reactive(observed)
     expect(observed2).toBe(observed)
   })
-
   test('observing the same value multiple times should return same Proxy', () => {
     const original = { foo: 1 }
     const observed = reactive(original)
@@ -157,7 +155,7 @@ describe('reactivity/reactive', () => {
     expect(observed.bar).toBe(observed2)
     expect(original.bar).toBe(original2)
   })
-
+  // toRaw
   test('toRaw', () => {
     const original = { foo: 1 }
     const observed = reactive(original)
@@ -180,7 +178,7 @@ describe('reactivity/reactive', () => {
     expect(isRef(observedNumberRef)).toBe(true)
     expect(isRef(observedObjectRef)).toBe(true)
   })
-
+  // 访问某个属性，如果是 ref，那么需要 unwrap
   test('should unwrap computed refs', () => {
     // readonly
     const a = computed(() => 1)
@@ -211,7 +209,7 @@ describe('reactivity/reactive', () => {
     bar.value++
     expect(dummy.value).toBe(2)
   })
-
+  // 不能转换为响应式的一些属性
   test('non-observable values', () => {
     const assertValue = (value: any) => {
       reactive(value)
@@ -242,7 +240,7 @@ describe('reactivity/reactive', () => {
     const d = new Date()
     expect(reactive(d)).toBe(d)
   })
-
+  // markRaw 后不能转换为响应式
   test('markRaw', () => {
     const obj = reactive({
       foo: { a: 1 },
@@ -251,7 +249,7 @@ describe('reactivity/reactive', () => {
     expect(isReactive(obj.foo)).toBe(true)
     expect(isReactive(obj.bar)).toBe(false)
   })
-
+  // 不可扩展的 object 不能转换为响应式
   test('should not observe non-extensible objects', () => {
     const obj = reactive({
       foo: Object.preventExtensions({ a: 1 }),
@@ -263,7 +261,7 @@ describe('reactivity/reactive', () => {
     expect(isReactive(obj.bar)).toBe(false)
     expect(isReactive(obj.baz)).toBe(false)
   })
-
+  // 加了 __v_skip 的对象不能转换未响应式
   test('should not observe objects with __v_skip', () => {
     const original = {
       foo: 1,
