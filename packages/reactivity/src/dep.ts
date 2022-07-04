@@ -18,6 +18,7 @@ type TrackedMarkers = {
   n: number
 }
 
+// 可以看到 dep 就是一个 Set，每个 dep 里面存储了哪些 effect 订阅了它
 export const createDep = (effects?: ReactiveEffect[]): Dep => {
   const dep = new Set<ReactiveEffect>(effects) as Dep
   dep.w = 0
@@ -29,6 +30,7 @@ export const wasTracked = (dep: Dep): boolean => (dep.w & trackOpBit) > 0
 
 export const newTracked = (dep: Dep): boolean => (dep.n & trackOpBit) > 0
 
+// 标记 effect 的所有的 deps 为已跟踪
 export const initDepMarkers = ({ deps }: ReactiveEffect) => {
   if (deps.length) {
     for (let i = 0; i < deps.length; i++) {
@@ -43,12 +45,15 @@ export const finalizeDepMarkers = (effect: ReactiveEffect) => {
     let ptr = 0
     for (let i = 0; i < deps.length; i++) {
       const dep = deps[i]
+      // 如果这个 dep 已经跟踪过了，从 dep 中删除当前的 effect
       if (wasTracked(dep) && !newTracked(dep)) {
         dep.delete(effect)
       } else {
+      // 如果未跟踪过，那么将 dep 位置前移
         deps[ptr++] = dep
       }
       // clear bits
+      // 重置标志位
       dep.w &= ~trackOpBit
       dep.n &= ~trackOpBit
     }
