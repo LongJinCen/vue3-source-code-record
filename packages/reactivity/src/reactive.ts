@@ -59,6 +59,7 @@ function targetTypeMap(rawType: string) {
 function getTargetType(value: Target) {
   return value[ReactiveFlags.SKIP] || !Object.isExtensible(value)
     ? TargetType.INVALID
+    // 需要转换为原始类型
     : targetTypeMap(toRawType(value))
 }
 
