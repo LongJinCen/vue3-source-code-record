@@ -29,6 +29,7 @@ type RefBase<T> = {
   value: T
 }
 
+// 访问 ref 时,进行依赖收集
 export function trackRefValue(ref: RefBase<any>) {
   if (shouldTrack && activeEffect) {
     ref = toRaw(ref)
@@ -39,11 +40,13 @@ export function trackRefValue(ref: RefBase<any>) {
         key: 'value'
       })
     } else {
+      // Ref 的 dep 是直接存储在自己的 .dep 属性上的
       trackEffects(ref.dep || (ref.dep = createDep()))
     }
   }
 }
 
+// 派发更新，触发 ref.dep 的执行
 export function triggerRefValue(ref: RefBase<any>, newVal?: any) {
   ref = toRaw(ref)
   if (ref.dep) {
@@ -60,11 +63,13 @@ export function triggerRefValue(ref: RefBase<any>, newVal?: any) {
   }
 }
 
+// 判断是否是一个 ref ，看 是否有 __v_isRef 属性
 export function isRef<T>(r: Ref<T> | unknown): r is Ref<T>
 export function isRef(r: any): r is Ref {
   return !!(r && r.__v_isRef === true)
 }
 
+// 创建 ref 的函数
 export function ref<T extends object>(
   value: T
 ): [T] extends [Ref] ? T : Ref<UnwrapRef<T>>
@@ -78,6 +83,7 @@ declare const ShallowRefMarker: unique symbol
 
 export type ShallowRef<T = any> = Ref<T> & { [ShallowRefMarker]?: true }
 
+// 穿件 shallowRef 的函数
 export function shallowRef<T extends object>(
   value: T
 ): T extends Ref ? T : ShallowRef<T>
@@ -87,44 +93,57 @@ export function shallowRef(value?: unknown) {
   return createRef(value, true)
 }
 
+// 创建 ref 的函数
 function createRef(rawValue: unknown, shallow: boolean) {
+  // 如果已经是一个 ref 了，那么返回 rawValue
   if (isRef(rawValue)) {
     return rawValue
   }
+  // 实例化 Ref
   return new RefImpl(rawValue, shallow)
 }
 
 class RefImpl<T> {
   private _value: T
   private _rawValue: T
-
+  // 当前 ref 的依赖
   public dep?: Dep = undefined
+  // 标志当前是一个 ref
   public readonly __v_isRef = true
 
   constructor(value: T, public readonly __v_isShallow: boolean) {
+    // 存储 RawValue，如果是 shallow 那么存储 value
     this._rawValue = __v_isShallow ? value : toRaw(value)
+    // 如果是 shallow，那么不会转换为响应式，否则转换为响应式
+    // 这里只有对象才会被转换为一个响应式，原始值不会
     this._value = __v_isShallow ? value : toReactive(value)
   }
-
+  // 当获取 value 时，需要进行依赖收集
   get value() {
     trackRefValue(this)
+    // 返回 value
     return this._value
   }
 
   set value(newVal) {
     newVal = this.__v_isShallow ? newVal : toRaw(newVal)
+    // 改变后更新值，并派发更新
     if (hasChanged(newVal, this._rawValue)) {
       this._rawValue = newVal
+      // 设置的时候也会进行 reactive 转换
       this._value = this.__v_isShallow ? newVal : toReactive(newVal)
+      // 派发更新
       triggerRefValue(this, newVal)
     }
   }
 }
 
+// 可调用该函数，手动派发 ref 的更新
 export function triggerRef(ref: Ref) {
   triggerRefValue(ref, __DEV__ ? ref.value : void 0)
 }
 
+// unwrap ref 的值，返回 ref.value
 export function unref<T>(ref: T | Ref<T>): T {
   return isRef(ref) ? (ref.value as any) : ref
 }
@@ -142,6 +161,7 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
   }
 }
 
+// 对于一个 objectWithRefs，如果它不是 reactive ，那么会将其转换为一个 proxy，访问其 key 时，会自动 unref
 export function proxyRefs<T extends object>(
   objectWithRefs: T
 ): ShallowUnwrapRef<T> {
@@ -188,6 +208,8 @@ export function customRef<T>(factory: CustomRefFactory<T>): Ref<T> {
   return new CustomRefImpl(factory) as any
 }
 
+// torefs 将一个 reactive obj 的每一个 property 转换为一个 ref
+// 本质上不是一个 Ref，而是做了一层代理，访问的还是 reactive obj
 export type ToRefs<T = any> = {
   [K in keyof T]: ToRef<T[K]>
 }
@@ -197,6 +219,7 @@ export function toRefs<T extends object>(object: T): ToRefs<T> {
   }
   const ret: any = isArray(object) ? new Array(object.length) : {}
   for (const key in object) {
+    // 调用 toRef
     ret[key] = toRef(object, key)
   }
   return ret
@@ -210,17 +233,21 @@ class ObjectRefImpl<T extends object, K extends keyof T> {
     private readonly _key: K,
     private readonly _defaultValue?: T[K]
   ) {}
-
+  // 返回对饮的 object 上的 key 的值
   get value() {
     const val = this._object[this._key]
+    // 如果没值，取默认值
     return val === undefined ? (this._defaultValue as T[K]) : val
   }
-
+  // 设置 newValue 到 object 上对应的 key
   set value(newVal) {
     this._object[this._key] = newVal
   }
 }
 
+
+// toRef 的实现
+// 本质上不是一个 Ref，而是做了一层代理
 export type ToRef<T> = IfAny<T, Ref<T>, [T] extends [Ref] ? T : Ref<T>>
 
 export function toRef<T extends object, K extends keyof T>(
@@ -240,8 +267,10 @@ export function toRef<T extends object, K extends keyof T>(
   defaultValue?: T[K]
 ): ToRef<T[K]> {
   const val = object[key]
+  // 如果已经是一个 ref 了，那么不用转换
   return isRef(val)
     ? val
+    // 否则新建一个 ObjectRef 实例
     : (new ObjectRefImpl(object, key, defaultValue) as any)
 }
 
