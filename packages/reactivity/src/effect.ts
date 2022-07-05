@@ -421,6 +421,7 @@ export function triggerEffects(
   }
 }
 
+// 派发更新
 function triggerEffect(
   effect: ReactiveEffect,
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
@@ -429,6 +430,7 @@ function triggerEffect(
     if (__DEV__ && effect.onTrigger) {
       effect.onTrigger(extend({ effect }, debuggerEventExtraInfo))
     }
+    // 对于 computed，有自己的 scheduler
     if (effect.scheduler) {
       effect.scheduler()
     } else {

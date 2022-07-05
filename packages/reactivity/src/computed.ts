@@ -23,7 +23,9 @@ export interface WritableComputedOptions<T> {
   set: ComputedSetter<T>
 }
 
+// computed 跟 ref 类似
 export class ComputedRefImpl<T> {
+  // 有哪些 effect 依赖了当前 computed value
   public dep?: Dep = undefined
 
   private _value!: T
@@ -42,6 +44,9 @@ export class ComputedRefImpl<T> {
     isSSR: boolean
   ) {
     this.effect = new ReactiveEffect(getter, () => {
+      // 这个是 computed 自己的 scheduler
+      // 当执行 this.effect.run 时会进行依赖收集，收集当前 effect 依赖了哪些依赖，当依赖发生改变后就会触发该 effect 重新执行，也就是进入当前函数
+      // 然后触发访问当前 computed 值的 effect 重新运行，然后触发访问当前的 value，然后重新触发 this.effect.run，这样就能获得新值了
       if (!this._dirty) {
         this._dirty = true
         triggerRefValue(this)
@@ -51,11 +56,13 @@ export class ComputedRefImpl<T> {
     this.effect.active = this._cacheable = !isSSR
     this[ReactiveFlags.IS_READONLY] = isReadonly
   }
-
+  // computed 属性只有当访问当前 value 时，才会进行计算
   get value() {
     // the computed ref may get wrapped by other proxies e.g. readonly() #3376
     const self = toRaw(this)
+    // computed 的 value 需要进行依赖收集，表示哪些 effect 依赖了当前的 value
     trackRefValue(self)
+    // 触发计算逻辑
     if (self._dirty || !self._cacheable) {
       self._dirty = false
       self._value = self.effect.run()!
@@ -68,6 +75,7 @@ export class ComputedRefImpl<T> {
   }
 }
 
+// computed 的实现
 export function computed<T>(
   getter: ComputedGetter<T>,
   debugOptions?: DebuggerOptions
@@ -81,6 +89,7 @@ export function computed<T>(
   debugOptions?: DebuggerOptions,
   isSSR = false
 ) {
+  // normalize getter 和 setter
   let getter: ComputedGetter<T>
   let setter: ComputedSetter<T>
 
