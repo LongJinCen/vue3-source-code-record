@@ -45,7 +45,7 @@ export const finalizeDepMarkers = (effect: ReactiveEffect) => {
     let ptr = 0
     for (let i = 0; i < deps.length; i++) {
       const dep = deps[i]
-      // 如果这个 dep 已经跟踪过了，从 dep 中删除当前的 effect
+      // 如果这个 dep 已经跟踪过 当前激活的 effect 了，从 dep 中删除当前的 effect
       if (wasTracked(dep) && !newTracked(dep)) {
         dep.delete(effect)
       } else {
